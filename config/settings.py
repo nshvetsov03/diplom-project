@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'spaces',
 ]
 
+AUTH_USER_MODEL = 'spaces.User'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
