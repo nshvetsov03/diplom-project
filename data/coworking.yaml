@@ -1,0 +1,89 @@
+location:
+  name: "Коворкинг Точка Кипения"
+  url: "https://tochka-kipeniya.ru"
+  address: "Москва, ул. Ленина, 15"
+
+categories:
+  - id: 1
+    name: "Hot Desk"
+    description: "Открытое рабочее место"
+  - id: 2
+    name: "Dedicated Desk"
+    description: "Закрепленное рабочее место"
+  - id: 3
+    name: "Meeting Room"
+    description: "Переговорная комната"
+  - id: 4
+    name: "Private Office"
+    description: "Приватный офис"
+
+spaces:
+  - id: 1001
+    category: 1
+    name: "Hot Desk A1"
+    description: "Рабочее место у окна"
+    price: 500
+    free_seat: 1
+    parameters:
+      "Wi-Fi": "100 Мбит/с"
+      "Монитор": "24 дюйма"
+      "Розетки": "2"
+
+  - id: 1002
+    category: 1
+    name: "Hot Desk A2"
+    description: "Рабочее место в центре зала"
+    price: 450
+    free_seat: 1
+    parameters:
+      "Wi-Fi": "100 Мбит/с"
+      "Монитор": "нет"
+      "Розетки": "1"
+
+  - id: 2001
+    category: 2
+    name: "Dedicated Desk B1"
+    description: "Закрепленное место с тумбой"
+    price: 15000
+    free_seat: 1
+    parameters:
+      "Wi-Fi": "100 Мбит/с"
+      "Монитор": "27 дюймов"
+      "Тумба": "Да"
+      "Шкафчик": "Да"
+
+  - id: 3001
+    category: 3
+    name: "Meeting Room Small"
+    description: "Переговорка на 4 человека"
+    price: 1500
+    free_seat: 4
+    parameters:
+      "Wi-Fi": "100 Мбит/с"
+      "Проектор": "Да"
+      "Флипчарт": "Да"
+      "Телефон": "Да"
+
+  - id: 3002
+    category: 3
+    name: "Meeting Room Large"
+    description: "Переговорка на 10 человек"
+    price: 3000
+    free_seat: 10
+    parameters:
+      "Wi-Fi": "100 Мбит/с"
+      "Проектор": "Да"
+      "Видеоконференция": "Да"
+      "Флипчарт": "Да"
+
+  - id: 4001
+    category: 4
+    name: "Private Office 1"
+    description: "Офис на 3 человек"
+    price: 45000
+    free_seat: 3
+    parameters:
+      "Wi-Fi": "100 Мбит/с"
+      "Кондиционер": "Да"
+      "Телефон": "2"
+      "Принтер": "Общий"
