@@ -2,13 +2,14 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from requests import get
 from yaml import load as load_yaml, Loader
 
-from .models import Location, Category, Space, SpaceDetails, Amenity, SpaceAmenity, Contact
-from .serializers import ContactSerializer
+from .models import Location, Category, Space, SpaceDetails, Amenity, SpaceAmenity, Contact, User
+from .serializers import ContactSerializer, SpaceDetailsSerializer
 
 
 # Create your views here.
@@ -143,3 +144,65 @@ class ContactAPIView(APIView):
             return Response(
                 {'Status': True}, status=status.HTTP_200_OK
             )
+
+
+class LoginAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        # Ищем пользователя
+        user = User.objects.filter(email=email).first()
+
+        # Проверяем, что пользователь существует и пароль верный
+        if not user or not user.check_password(password):
+            return Response(
+                {'Status': False, 'Error': 'Неверный email или пароль'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Получаем или создаем токен
+        token, created = Token.objects.get_or_create(user=user)
+
+        return Response(
+            {'Status': True, 'token': token.key},
+            status=status.HTTP_200_OK
+        )
+
+
+class RegistrationAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        password = request.data.get('password')
+        name_user = request.data.get('name_user')
+        surname_user = request.data.get('surname_user')
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'Status': False, 'Error': 'Пользователь с таким email уже существует'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            name_user=name_user,
+            surname_user=surname_user
+        )
+
+        token, created = Token.objects.get_or_create(user=user)
+
+        return Response(
+            {'Status': True, 'token': token.key},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class SpaceAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        spaces = SpaceDetails.objects.all()
+        serializer = SpaceDetailsSerializer(spaces, many=True)
+        return Response(
+            {'Status': True, 'spaces': serializer.data},
+            status=status.HTTP_200_OK
+        )
