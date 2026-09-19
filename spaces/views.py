@@ -8,8 +8,8 @@ from django.core.exceptions import ValidationError
 from requests import get
 from yaml import load as load_yaml, Loader
 
-from .models import Location, Category, Space, SpaceDetails, Amenity, SpaceAmenity, Contact, User
-from .serializers import ContactSerializer, SpaceDetailsSerializer
+from .models import Location, Category, Space, SpaceDetails, Amenity, SpaceAmenity, Contact, User, Booking, BookingItem
+from .serializers import ContactSerializer, SpaceDetailsSerializer, BookingItemSerializer, BookingSerializer
 
 
 # Create your views here.
@@ -206,3 +206,130 @@ class SpaceAPIView(APIView):
             {'Status': True, 'spaces': serializer.data},
             status=status.HTTP_200_OK
         )
+
+
+class BasketAPIView(APIView):
+    """
+    View для работы с корзиной (просмотр, добавление, удаление)
+    """
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {'Status': False, 'Error': 'Log in required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        booking = Booking.objects.filter(user=request.user, status='pending').first()
+        if not booking:
+            return Response(
+                {'Status': True, 'basket': None, 'message': 'Корзина пуста'},
+                status=status.HTTP_200_OK
+            )
+        serializer = BookingSerializer(booking)
+        return Response(
+            {'Status': True, 'basket': serializer.data},
+            status=status.HTTP_200_OK
+        )
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {'Status': False, 'Error': 'Log in required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        space_detail_id = request.data.get('space_detail')
+        quantity = request.data.get('quantity', 1)
+        contact_id = request.data.get('contact')
+
+        if not space_detail_id or not contact_id:
+            return Response(
+                {'Status': False, 'Error': 'Не указаны space_detail или contact'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking, created = Booking.objects.get_or_create(
+            user=request.user,
+            status='pending',
+            defaults={'contact_id': contact_id}
+        )
+
+        item, item_created = BookingItem.objects.get_or_create(
+            booking=booking,
+            space_detail_id=space_detail_id,
+            defaults={'quantity': quantity}
+        )
+
+        if not item_created:
+            item.quantity = quantity
+            item.save()
+
+        serializer = BookingSerializer(booking)
+        return Response(
+            {'Status': True, 'basket': serializer.data},
+            status=status.HTTP_200_OK
+        )
+
+    def delete(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {'Status': False, 'Error': 'Log in required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        item_id = kwargs.get('pk')
+        if not item_id:
+            return Response(
+                {'Status': False, 'Error': 'Не указан ID позиции'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking = Booking.objects.filter(user=request.user, status='pending').first()
+        if not booking:
+            return Response(
+                {'Status': False, 'Error': 'Корзина не найдена'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        item = BookingItem.objects.filter(id=item_id, booking=booking).first()
+        if not item:
+            return Response(
+                {'Status': False, 'Error': 'Позиция не найдена в корзине'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        item.delete()
+
+        serializer = BookingSerializer(booking)
+        return Response(
+            {'Status': True, 'basket': serializer.data},
+            status=status.HTTP_200_OK
+        )
+
+
+class ConfirmBookingAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({'Status': False, 'Error': 'Log in required'}, status=status.HTTP_403_FORBIDDEN)
+
+        booking_id = kwargs.get('pk')
+        booking = Booking.objects.filter(id=booking_id, user=request.user, status='pending').first()
+
+        if not booking:
+            return Response({'Status': False, 'Error': 'Бронирование не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        booking.status = 'confirmed'
+        booking.save()
+
+        serializer = BookingSerializer(booking)
+        return Response({'Status': True, 'booking': serializer.data}, status=status.HTTP_200_OK)
+
+
+class BookingListAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({'Status': False, 'Error': 'Log in required'}, status=status.HTTP_403_FORBIDDEN)
+
+        bookings = Booking.objects.filter(user=request.user).order_by('-dt')
+        serializer = BookingSerializer(bookings, many=True)
+
+        return Response({'Status': True, 'bookings': serializer.data}, status=status.HTTP_200_OK)
