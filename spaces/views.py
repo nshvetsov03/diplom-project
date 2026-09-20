@@ -10,7 +10,8 @@ from yaml import load as load_yaml, Loader
 from rest_framework.permissions import AllowAny
 from django.core.mail import send_mail
 
-from .models import Location, Category, Space, SpaceDetails, Amenity, SpaceAmenity, Contact, User, Booking, BookingItem
+from .models import (Location, Category, Space, SpaceDetails, Amenity,
+                     SpaceAmenity, Contact, User, Booking, BookingItem, ConfirmEmailToken)
 from .serializers import ContactSerializer, SpaceDetailsSerializer, BookingItemSerializer, BookingSerializer
 
 
@@ -85,7 +86,7 @@ class PartnerUpdate(APIView):
                         parameter_object, _ = Amenity.objects.get_or_create(name=param_name)
                         SpaceAmenity.objects.create(
                             space_detail=space_detail,
-                            parameter=parameter_object,
+                            amenity=parameter_object,
                             value=str(param_value)
                         )
 
@@ -191,7 +192,8 @@ class RegistrationAPIView(APIView):
             email=email,
             password=password,
             name_user=name_user,
-            surname_user=surname_user
+            surname_user=surname_user,
+            is_active=False
         )
 
         token, created = Token.objects.get_or_create(user=user)
@@ -335,16 +337,30 @@ class ConfirmBookingAPIView(APIView):
         booking = Booking.objects.filter(id=booking_id, user=request.user, status='pending').first()
 
         if not booking:
-            return Response({'Status': False, 'Error': 'Бронирование не найдено или уже подтверждено'},
-                            status=status.HTTP_404_NOT_FOUND)
+            return Response({'Status': False, 'Error': 'Бронирование не найдено'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Проверка на пустую корзину
+        if not booking.items.exists():
+            return Response({'Status': False, 'Error': 'Корзина пуста, добавьте товары перед подтверждением'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Обновление контакта при подтверждении
+        new_contact_id = request.data.get('contact')
+        if new_contact_id:
+            contact = Contact.objects.filter(id=new_contact_id, user=request.user).first()
+            if contact:
+                booking.contact = contact
+                booking.save()
+
+        # Меняем статус
         booking.status = 'confirmed'
         booking.save()
 
+        # Отправляем email
         send_mail(
             subject='Подтверждение бронирования коворкинга',
-            message=f'Здравствуйте! Ваше бронирование №{booking.id} успешно подтверждено. Ждём вас!',
-            from_email='coworking@example.com',
+            message=f'Здравствуйте! Ваше бронирование №{booking.id} успешно подтверждено.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[request.user.email],
             fail_silently=False,
         )
@@ -362,3 +378,61 @@ class BookingListAPIView(APIView):
         serializer = BookingSerializer(bookings, many=True)
 
         return Response({'Status': True, 'bookings': serializer.data}, status=status.HTTP_200_OK)
+
+
+class ConfirmRegistrationAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        token_key = request.data.get('token')
+
+        if not email or not token_key:
+            return Response(
+                {'Status': False, 'Error': 'Не указаны email или token'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response(
+                {'Status': False, 'Error': 'Пользователь не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Ищем токен
+        token = ConfirmEmailToken.objects.filter(user=user, key=token_key).first()
+        if not token:
+            return Response(
+                {'Status': False, 'Error': 'Неверный токен подтверждения'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Активируем пользователя и удаляем токен
+        user.is_active = True
+        user.save()
+        token.delete()
+
+        return Response(
+            {'Status': True, 'message': 'Регистрация успешно подтверждена'},
+            status=status.HTTP_200_OK
+        )
+
+
+class SpaceDetailAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        space_id = kwargs.get('pk')
+        space = SpaceDetails.objects.filter(id=space_id).first()
+        if not space:
+            return Response(
+                {'Status': False, 'Error': 'Пространство не найдено'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = SpaceDetailsSerializer(space)
+        return Response(
+            {'Status': True, 'space': serializer.data},
+            status=status.HTTP_200_OK
+        )

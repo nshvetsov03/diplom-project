@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    'spaces',
+    'spaces.apps.SpacesConfig',
+    'django_rest_passwordreset'
 ]
 
 AUTH_USER_MODEL = 'spaces.User'

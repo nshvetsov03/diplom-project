@@ -7,7 +7,8 @@ from .views import (
     SpaceAPIView,
     BasketAPIView,
     ConfirmBookingAPIView,
-    BookingListAPIView
+    BookingListAPIView,
+    ConfirmRegistrationAPIView
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path('booking/<int:pk>/confirm/', ConfirmBookingAPIView.as_view(), name='confirm-booking'),
     path('bookings/', BookingListAPIView.as_view(), name='bookings'),
     path('partner-update/', PartnerUpdate.as_view(), name='partner-update'),
+    path('registration/confirm/', ConfirmRegistrationAPIView.as_view(), name='confirm-registration'),
 ]

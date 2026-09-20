@@ -19,5 +19,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('spaces.urls'))
+    path('api/', include('spaces.urls')),
+    path('api/password_reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
+    path('spaces/<int:pk>/', SpaceDetailAPIView.as_view(), name='space-detail'),
 ]
