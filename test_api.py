@@ -24,12 +24,34 @@ def main():
     })
     print(f"Статус: {r.status_code}")
     if r.status_code != 201:
-        print("❌ Ошибка регистрации:", r.json())
+        print("❌ Ошибка регистрации:", r.status_code, r.text[:200])
         return
+
+    # Смотрим в консоль Django и берём токен оттуда
+    print("⚠️ СМОТРИ В КОНСОЛЬ DJANGO! Скопируй токен подтверждения и вставь ниже.")
+    confirm_token = input("Вставь токен подтверждения email: ")
+
+    # Подтверждаем email
+    print("Подтверждаем email...")
+    r = requests.post(f'{BASE_URL}/registration/confirm/', json={
+        'email': TEST_EMAIL,
+        'token': confirm_token
+    })
+    print(f"Статус подтверждения: {r.status_code}")
+    if r.status_code != 200:
+        print("❌ Ошибка подтверждения:", r.json())
+        return
+    print("✅ Email подтверждён!")
+
+    # Теперь получаем токен для авторизации (логинимся)
+    r = requests.post(f'{BASE_URL}/login/', json={
+        'email': TEST_EMAIL,
+        'password': TEST_PASSWORD
+    })
+    print(f"Статус логина: {r.status_code}")
     token = r.json().get('token')
-    print(f" Токен: {token}")
     headers = {'Authorization': f'Token {token}'}
-    print(f"📋 Headers: {headers}")
+    print("✅ Успешно! Токен получен.")
 
 
     # 2. Создание контакта

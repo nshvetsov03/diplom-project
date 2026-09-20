@@ -10,12 +10,10 @@ from yaml import load as load_yaml, Loader
 from rest_framework.permissions import AllowAny
 from django.core.mail import send_mail
 
+from config import settings
 from .models import (Location, Category, Space, SpaceDetails, Amenity,
                      SpaceAmenity, Contact, User, Booking, BookingItem, ConfirmEmailToken)
 from .serializers import ContactSerializer, SpaceDetailsSerializer, BookingItemSerializer, BookingSerializer
-
-
-# Create your views here.
 
 class PartnerUpdate(APIView):
     """

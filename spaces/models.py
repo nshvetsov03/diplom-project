@@ -11,8 +11,6 @@ BOOKING_STATUS_CHOICES = (
     ('completed', 'Завершено'),
 )
 
-# Create your models here.
-
 class UserManager(BaseUserManager):
     """
     Миксин для управления пользователями
@@ -117,6 +115,7 @@ class Space(models.Model):
     category = models.ForeignKey(
         Category,
         verbose_name='Категория',
+        null=True,
         blank=True,
         related_name='spaces',
         on_delete=models.CASCADE)
