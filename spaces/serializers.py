@@ -38,7 +38,7 @@ class BookingSerializer(serializers.ModelSerializer):
     """
     Сериализатор для бронирования
     """
-    items = BookingItemSerializer(source='items', many=True, read_only=True)
+    items = BookingItemSerializer(many=True, read_only=True)
     total_price = serializers.SerializerMethodField()
     contact_info = serializers.CharField(source='contact', read_only=True)
 

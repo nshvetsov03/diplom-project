@@ -7,6 +7,8 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from requests import get
 from yaml import load as load_yaml, Loader
+from rest_framework.permissions import AllowAny
+from django.core.mail import send_mail
 
 from .models import Location, Category, Space, SpaceDetails, Amenity, SpaceAmenity, Contact, User, Booking, BookingItem
 from .serializers import ContactSerializer, SpaceDetailsSerializer, BookingItemSerializer, BookingSerializer
@@ -147,6 +149,7 @@ class ContactAPIView(APIView):
 
 
 class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -171,6 +174,7 @@ class LoginAPIView(APIView):
 
 
 class RegistrationAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -199,6 +203,7 @@ class RegistrationAPIView(APIView):
 
 
 class SpaceAPIView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request, *args, **kwargs):
         spaces = SpaceDetails.objects.all()
         serializer = SpaceDetailsSerializer(spaces, many=True)
@@ -237,9 +242,21 @@ class BasketAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Получаем данные и преобразуем в нужные типы
         space_detail_id = request.data.get('space_detail')
         quantity = request.data.get('quantity', 1)
         contact_id = request.data.get('contact')
+
+        # Преобразуем в числа (если они есть)
+        try:
+            space_detail_id = int(space_detail_id) if space_detail_id else None
+            quantity = int(quantity) if quantity else 1
+            contact_id = int(contact_id) if contact_id else None
+        except (ValueError, TypeError):
+            return Response(
+                {'Status': False, 'Error': 'Некорректные данные'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not space_detail_id or not contact_id:
             return Response(
@@ -247,18 +264,21 @@ class BasketAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Ищем или создаем корзину
         booking, created = Booking.objects.get_or_create(
             user=request.user,
             status='pending',
             defaults={'contact_id': contact_id}
         )
 
+        # Ищем или создаем позицию
         item, item_created = BookingItem.objects.get_or_create(
             booking=booking,
             space_detail_id=space_detail_id,
             defaults={'quantity': quantity}
         )
 
+        # Обновляем количество, если позиция уже была
         if not item_created:
             item.quantity = quantity
             item.save()
@@ -315,10 +335,19 @@ class ConfirmBookingAPIView(APIView):
         booking = Booking.objects.filter(id=booking_id, user=request.user, status='pending').first()
 
         if not booking:
-            return Response({'Status': False, 'Error': 'Бронирование не найдено'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'Status': False, 'Error': 'Бронирование не найдено или уже подтверждено'},
+                            status=status.HTTP_404_NOT_FOUND)
 
         booking.status = 'confirmed'
         booking.save()
+
+        send_mail(
+            subject='Подтверждение бронирования коворкинга',
+            message=f'Здравствуйте! Ваше бронирование №{booking.id} успешно подтверждено. Ждём вас!',
+            from_email='coworking@example.com',
+            recipient_list=[request.user.email],
+            fail_silently=False,
+        )
 
         serializer = BookingSerializer(booking)
         return Response({'Status': True, 'booking': serializer.data}, status=status.HTTP_200_OK)
